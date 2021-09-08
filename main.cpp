@@ -3,14 +3,15 @@ using namespace std;
 float inf = numeric_limits<float>::infinity();
 using ll = long long;
 
-const double end_time = 500000;
+const double end_time = 50000;
 //客の到着率(人/時)
-const double lambda = 1;
+const double lambda = 100;
 //待ち室容量
-const int K = inf;
-const double TAXI_NUM = 1;
-const double velocity = 100;
-const double radius = 3;
+const int K = 1000;
+const double TAXI_NUM = 65;
+const double velocity = 20;
+const double radius = 7;
+const double set_time = 3.0;
 constexpr double PI = 3.14159265358979323846264338;
 
 
@@ -102,23 +103,22 @@ void fcfs() {
                 event.push(make_tuple(current_time + pickup_time, 1, taxi_que.front()));
                 taxi_que.pop();
                 
-                if (get<0>(event.top()) >= end_time / 3.0) {
+                if (get<0>(event.top()) >= end_time / set_time) {
                     //サービス時間加算
                     service_time_sum += pickup_time;
-                    //pop_cnt += 1;
                 }
             }
 
             //次の客発生時刻をイベントにpush
             current_time += Arrival_interval();
-            event.push(make_tuple(current_time, 0, 1));
+            event.push(make_tuple(current_time, 0, -1));
             
         } else if (get<1>(event.top()) == 1) {  //乗車
             //降車時間を計算
             pair<double, double> destination = coordinate();
             double service_time = cal_dst(taxi_pos.at(get<2>(event.top())), destination) / velocity;
             //サービスタイム加算
-            if (get<0>(event.top()) >= end_time / 3.0) {
+            if (get<0>(event.top()) >= end_time / set_time) {
                 service_time_sum += service_time;
             }
             //タクシーの座標を降車位置に
@@ -142,7 +142,7 @@ void fcfs() {
                 taxi_pos.at(get<2>(event.top())) = passenger;
                 
                 //初めの1/3のデータは捨てる
-                if (get<0>(event.top()) >= end_time / 3.0) {
+                if (get<0>(event.top()) >= end_time / set_time) {
                     //行列長を足す
                     Length_sum += que.size() - 1;
                     //待ち時間を足す
@@ -154,10 +154,12 @@ void fcfs() {
             } else {
                 //タクシーの状態を空車に
                 taxi_que.push(get<2>(event.top()));
-                if (TAXI_NUM) taxi_pos.at(get<2>(event.top()));
+                if (TAXI_NUM) taxi_pos.at(get<2>(event.top())) = make_pair(0, 0);
             }
             //サービスを終えた客をカウント
-            pop_cnt += 1;
+            if (get<0>(event.top()) >= end_time / set_time) {
+                pop_cnt += 1;
+            }
             
         }
         
@@ -173,9 +175,9 @@ void fcfs() {
     
     cout << "...100%" << endl;
     
-    cout << "Service time average = " << service_time_sum / pop_cnt << endl;
     cout << "Wait time average = " << wait_time_sum / pop_cnt << endl;
     cout << "Length average = " << Length_sum / pop_cnt << endl;
+    cout << "Service time average = " << service_time_sum / pop_cnt << endl;
     cout << "roh = " << lambda * service_time_sum / pop_cnt / (double)TAXI_NUM << endl;
     cout << endl;
     
@@ -234,7 +236,7 @@ void closest() {
                 taxi_pos.at(*num) = passenger;
                 event.push(make_tuple(current_time + pickup_time, 1, *num));
                 taxi_list.erase(num);
-                if (get<0>(event.top()) >= end_time / 3.0) {
+                if (get<0>(event.top()) >= end_time / set_time) {
                     //サービス時間加算
                     service_time_sum += pickup_time;
                 }
@@ -242,13 +244,13 @@ void closest() {
 
             //次の客発生時刻をイベントにpush
             current_time += Arrival_interval();
-            event.push(make_tuple(current_time, 0, 1));
+            event.push(make_tuple(current_time, 0, -1));
             
         } else if (get<1>(event.top()) == 1) {  //乗車
             //降車時間を計算
             pair<double, double> destination = coordinate();
             double service_time = cal_dst(taxi_pos.at(get<2>(event.top())), destination) / velocity;
-            if (get<0>(event.top()) >= end_time / 3.0) {
+            if (get<0>(event.top()) >= end_time / set_time) {
                 service_time_sum += service_time;
             }
             //タクシーの座標を降車位置に
@@ -274,15 +276,13 @@ void closest() {
                 event.push(make_tuple(current_time + pickup_time, 1, get<2>(event.top())));
                 
                 //初めの1/3のデータは捨てる
-                if (get<0>(event.top()) >= end_time / 3.0) {
+                if (get<0>(event.top()) >= end_time / set_time) {
                     //行列長を足す
-                    Length_sum += pas_vec.size();
+                    Length_sum += pas_vec.size() - 1;
                     //待ち時間を足す
                     wait_time_sum += get<0>(event.top()) - pas_vec.at(num).first;
                     //サービス時間を足す
                     service_time_sum += pickup_time;
-                    //サービスを終えた客をカウント
-                    pop_cnt += 1;
                 }
                 //配列の要素削除は時間がかかるため，末尾を取り出したデータの格納先にコピーしてから末尾削除(定数時間)
                 pas_vec.at(num) = pas_vec.back();
@@ -292,6 +292,10 @@ void closest() {
                 taxi_list.push_back(get<2>(event.top()));
             }
             
+            if (get<0>(event.top()) >= end_time / set_time) {
+                //サービスを終えた客をカウント
+                pop_cnt += 1;
+            }
         }
         
         //進捗状況を表示
@@ -307,9 +311,9 @@ void closest() {
     cout << now << endl;
     cout << "100%" << endl;
     
-    cout << "Service time average = " << service_time_sum / pop_cnt << endl;
     cout << "Wait time average = " << wait_time_sum / pop_cnt << endl;
     cout << "Length average = " << Length_sum / pop_cnt << endl;
+    cout << "Service time average = " << service_time_sum / pop_cnt << endl;
     cout << "roh = " << lambda * service_time_sum / pop_cnt / (double)TAXI_NUM << endl;
     
 }
@@ -326,6 +330,6 @@ int main() {
 //    if (num == 1) fcfs();
 //    else closest();
     fcfs();
-    //closest();
+    closest();
 
 }
