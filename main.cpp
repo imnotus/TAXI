@@ -1,16 +1,19 @@
 #include <bits/stdc++.h>
+#define filename "61.txt"
+//！！！！！！！！！！！！！！！！！実行の前に必ずファイル名を変える！！！！！！！！！！！！！！！！！！
+
 using namespace std;
 float inf = numeric_limits<float>::infinity();
 using ll = long long;
-
-const double end_time = 50000;
+//シミュレーション時間
+const double end_time = 500000;
 //客の到着率(人/時)
 const double lambda = 100;
 //待ち室容量
 const int K = 1000;
-const double TAXI_NUM = 65;
+const double TAXI_NUM = 61;
 const double velocity = 20;
-const double radius = 7;
+const double radius = 7.0;
 const double set_time = 3.0;
 constexpr double PI = 3.14159265358979323846264338;
 
@@ -58,6 +61,10 @@ double cal_dst(pair<double, double> pos1, pair<double, double> pos2) {
 
 //先着順
 void fcfs() {
+    //出力ファイルを開く
+    ofstream outputfile;
+    outputfile.open(filename);
+    
     //時間，イベントの種類，タクシー番号を保持して時間の早い順に取り出す 0:客発生 1:乗車 2:降車
     priority_queue<tuple<double, int, int>, vector<tuple<double, int, int>>, greater<tuple<double, int, int>>> event;
     vector<pair<double, double>> taxi_pos(TAXI_NUM);
@@ -70,6 +77,8 @@ void fcfs() {
     double service_time_sum = 0.0;
     double Length_sum = 0.0;
     double pop_cnt = 0;
+    double rjc_cnt = 0;
+    double arv_cnt = 0;
     
     cout << "1 : First Come First Served" << endl;
     vector<bool> p_flag(4, 1);
@@ -92,10 +101,12 @@ void fcfs() {
     while (get<0>(event.top()) < end_time) {
         //客発生
         if (get<1>(event.top()) == 0) {
+            arv_cnt += 1;
             pair<double, double> passenger = coordinate();
             //空きタクシーがなければ待ち室に並ばせる
             if (taxi_que.empty()) {
                 if (que.size() < K) que.push(current_time);
+                else rjc_cnt += 1;
             } else {
                 //ピックアップ時間を計算
                 double pickup_time = cal_dst(taxi_pos.at(taxi_que.front()), passenger) / velocity;
@@ -146,7 +157,10 @@ void fcfs() {
                     //行列長を足す
                     Length_sum += que.size() - 1;
                     //待ち時間を足す
-                    wait_time_sum += get<0>(event.top()) - que.front();
+                    double WT = get<0>(event.top()) - que.front();
+                    wait_time_sum += WT;
+                    //待ち時間をファイルに出力
+                    outputfile << WT << endl;
                     //サービス時間を足す
                     service_time_sum += pickup_time;
                 }
@@ -174,24 +188,34 @@ void fcfs() {
     }
     
     cout << "...100%" << endl;
-    
+    //結果を出力
     cout << "Wait time average = " << wait_time_sum / pop_cnt << endl;
     cout << "Length average = " << Length_sum / pop_cnt << endl;
     cout << "Service time average = " << service_time_sum / pop_cnt << endl;
     cout << "roh = " << lambda * service_time_sum / pop_cnt / (double)TAXI_NUM << endl;
+    cout << "Rejection rate = " << rjc_cnt / arv_cnt << endl;
+    
     cout << endl;
+    outputfile.close();
     
 }
+
+
+
 
 double now = 0;
 //近接順
 void closest() {
-    //客の発生時刻と座標を持つ配列，仮待ち行列
+    //出力ファイルを開く
+    ofstream outputfile;
+    outputfile.open(filename);
+    
+    //客の発生時刻と座標を持つ配列，仮待ち行列 : 一番近い客はタクシーによって異なるためqueueもp_queも使えない．一番近い客の情報へのアクセス(ランダムアクセス)が速い配列を採用
     vector<pair<double, pair<double, double>>> pas_vec;
     //時間，イベントの種類，タクシー番号を保持して時間の早い順に取り出す 0:客発生 1:乗車 2:降車
     priority_queue<tuple<double, int, int>, vector<tuple<double, int, int>>, greater<tuple<double, int, int>>> event;
     vector<pair<double, double>> taxi_pos(TAXI_NUM);
-    //空きタクシーのリスト
+    //空きタクシーのリスト:空いている時，客から一番近いタクシーをリストから削除(客が乗車)する．そのため削除が速いリストを採用
     list<int> taxi_list;
     for (int i = 0; i < TAXI_NUM; i++) taxi_list.push_back(i);
 
@@ -199,6 +223,8 @@ void closest() {
     double wait_time_sum = 0.0;
     double Length_sum = 0.0;
     double pop_cnt = 0;
+    double rjc_cnt = 0;
+    double arv_cnt = 0;
     
     cout << "2 : Closest order" << endl;
     vector<bool> p_flag(4, 1);
@@ -216,10 +242,12 @@ void closest() {
     while (get<0>(event.top()) < end_time) {
         //客発生
         if (get<1>(event.top()) == 0) {
+            arv_cnt += 1;
             pair<double, double> passenger = coordinate();
             //空きタクシーがなければ待ち室に並ばせる
             if (taxi_list.empty()) {
                 if (pas_vec.size() < K) pas_vec.push_back(make_pair(current_time, passenger));
+                else rjc_cnt += 1;
                 
             } else {
                 //客から最短距離のタクシーを探索
@@ -280,7 +308,10 @@ void closest() {
                     //行列長を足す
                     Length_sum += pas_vec.size() - 1;
                     //待ち時間を足す
-                    wait_time_sum += get<0>(event.top()) - pas_vec.at(num).first;
+                    double WT = get<0>(event.top()) - pas_vec.at(num).first;
+                    wait_time_sum += WT;
+                    //待ち時間をファイルに出力
+                    outputfile << WT << endl;
                     //サービス時間を足す
                     service_time_sum += pickup_time;
                 }
@@ -308,13 +339,16 @@ void closest() {
         now = get<0>(event.top());
         event.pop();
     }
-    cout << now << endl;
-    cout << "100%" << endl;
-    
+    //cout << now << endl;
+    cout << "...100%" << endl;
+    //結果を出力
     cout << "Wait time average = " << wait_time_sum / pop_cnt << endl;
     cout << "Length average = " << Length_sum / pop_cnt << endl;
     cout << "Service time average = " << service_time_sum / pop_cnt << endl;
     cout << "roh = " << lambda * service_time_sum / pop_cnt / (double)TAXI_NUM << endl;
+    cout << "Rejection rate = " << rjc_cnt / arv_cnt << endl;
+    
+    outputfile.close();
     
 }
 
@@ -330,6 +364,6 @@ int main() {
 //    if (num == 1) fcfs();
 //    else closest();
     fcfs();
-    closest();
+    //closest();
 
 }
