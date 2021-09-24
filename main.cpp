@@ -1,5 +1,5 @@
 #include <bits/stdc++.h>
-#define filename "61.txt"
+//#define filename "67.txt"
 //！！！！！！！！！！！！！！！！！実行の前に必ずファイル名を変える！！！！！！！！！！！！！！！！！！
 
 using namespace std;
@@ -11,7 +11,7 @@ const double end_time = 500000;
 const double lambda = 100;
 //待ち室容量
 const int K = 1000;
-const double TAXI_NUM = 61;
+//const double TAXI_NUM = 67;
 const double velocity = 20;
 const double radius = 7.0;
 const double set_time = 3.0;
@@ -60,7 +60,8 @@ double cal_dst(pair<double, double> pos1, pair<double, double> pos2) {
 
 
 //先着順
-void fcfs() {
+void fcfs(double TAXI_NUM) {
+    string filename = to_string(TAXI_NUM) + ".txt";
     //出力ファイルを開く
     ofstream outputfile;
     outputfile.open(filename);
@@ -205,7 +206,8 @@ void fcfs() {
 
 double now = 0;
 //近接順
-void closest() {
+void closest(double TAXI_NUM) {
+    string filename = to_string(TAXI_NUM) + "c.txt";
     //出力ファイルを開く
     ofstream outputfile;
     outputfile.open(filename);
@@ -215,7 +217,7 @@ void closest() {
     //時間，イベントの種類，タクシー番号を保持して時間の早い順に取り出す 0:客発生 1:乗車 2:降車
     priority_queue<tuple<double, int, int>, vector<tuple<double, int, int>>, greater<tuple<double, int, int>>> event;
     vector<pair<double, double>> taxi_pos(TAXI_NUM);
-    //空きタクシーのリスト:空いている時，客から一番近いタクシーをリストから削除(客が乗車)する．そのため削除が速いリストを採用
+    //空きタクシーのリスト:空いている時，客から一番近いタクシーをリストから削除(客が乗車)する．削除が速いリストを採用
     list<int> taxi_list;
     for (int i = 0; i < TAXI_NUM; i++) taxi_list.push_back(i);
 
@@ -336,7 +338,7 @@ void closest() {
         else if (progress > 0.4 && p_flag.at(1)) {cout << "...40%"; p_flag.at(1) = false;}
         else if (progress > 0.2 && p_flag.at(0)) {cout << "...20%"; p_flag.at(0) = false;}
         
-        now = get<0>(event.top());
+        //now = get<0>(event.top());
         event.pop();
     }
     //cout << now << endl;
@@ -347,6 +349,7 @@ void closest() {
     cout << "Service time average = " << service_time_sum / pop_cnt << endl;
     cout << "roh = " << lambda * service_time_sum / pop_cnt / (double)TAXI_NUM << endl;
     cout << "Rejection rate = " << rjc_cnt / arv_cnt << endl;
+    cout << "Length error = " << Length_sum / pop_cnt - (1 - rjc_cnt / arv_cnt) * lambda * wait_time_sum / pop_cnt << endl;
     
     outputfile.close();
     
@@ -363,7 +366,9 @@ int main() {
 //
 //    if (num == 1) fcfs();
 //    else closest();
-    fcfs();
-    //closest();
+    cout << "PUT TAXI NUMBER :";
+    double TAXI_NUM; cin >> TAXI_NUM;
+    fcfs(TAXI_NUM);
+    closest(TAXI_NUM);
 
 }
