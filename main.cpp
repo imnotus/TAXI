@@ -60,7 +60,7 @@ double cal_dst(pair<double, double> pos1, pair<double, double> pos2) {
 
 
 //先着順
-void fcfs(double TAXI_NUM) {
+void fcfs(int TAXI_NUM) {
     string filename = to_string(TAXI_NUM) + ".txt";
     //出力ファイルを開く
     ofstream outputfile;
@@ -81,7 +81,7 @@ void fcfs(double TAXI_NUM) {
     double rjc_cnt = 0;
     double arv_cnt = 0;
     
-    cout << "1 : First Come First Served" << endl;
+    cout << "1 : First Come First Served" << " " << TAXI_NUM << endl;
     vector<bool> p_flag(4, 1);
     cout << "Progress is 0%";
     
@@ -206,7 +206,7 @@ void fcfs(double TAXI_NUM) {
 
 double now = 0;
 //近接順
-void closest(double TAXI_NUM) {
+void closest(int TAXI_NUM) {
     string filename = to_string(TAXI_NUM) + "c.txt";
     //出力ファイルを開く
     ofstream outputfile;
@@ -228,7 +228,7 @@ void closest(double TAXI_NUM) {
     double rjc_cnt = 0;
     double arv_cnt = 0;
     
-    cout << "2 : Closest order" << endl;
+    cout << "2 : Closest order" << " " << TAXI_NUM << endl;
     vector<bool> p_flag(4, 1);
     cout << "Progress is 0%";
     
@@ -366,9 +366,16 @@ int main() {
 //
 //    if (num == 1) fcfs();
 //    else closest();
-    cout << "PUT TAXI NUMBER :";
-    double TAXI_NUM; cin >> TAXI_NUM;
-    fcfs(TAXI_NUM);
-    closest(TAXI_NUM);
+    //cout << "PUT TAXI NUMBER :";
+    //int TAXI_NUM; cin >> TAXI_NUM;
+    //fcfs(TAXI_NUM);
+    for (int i = 51; i <= 70; i++) {
+        closest(i);
+        cout << endl;
+    }
+    for (int i = 49; i >= 30; i--) {
+        fcfs(i);
+        cout << endl;
+    }
 
 }
