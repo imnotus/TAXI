@@ -1,6 +1,4 @@
 #include <bits/stdc++.h>
-//#define filename "67.txt"
-//！！！！！！！！！！！！！！！！！実行の前に必ずファイル名を変える！！！！！！！！！！！！！！！！！！
 
 using namespace std;
 float inf = numeric_limits<float>::infinity();
@@ -8,13 +6,12 @@ using ll = long long;
 //シミュレーション時間
 const double end_time = 500000;
 //客の到着率(人/時)
-const double lambda = 100;
+double lambda;
 //待ち室容量
-const int K = 1000;
-//const double TAXI_NUM = 67;
+const int K = inf;
 const double velocity = 20;
 const double radius = 7.0;
-const double set_time = 3.0;
+const double set_time = 7.0;
 constexpr double PI = 3.14159265358979323846264338;
 
 
@@ -99,6 +96,7 @@ void fcfs(int TAXI_NUM) {
     double current_time = Arrival_interval();
     event.push(make_tuple(current_time, 0, 0));
     
+    double a = 0, sum = 0;
     while (get<0>(event.top()) < end_time) {
         //客発生
         if (get<1>(event.top()) == 0) {
@@ -118,6 +116,7 @@ void fcfs(int TAXI_NUM) {
                 if (get<0>(event.top()) >= end_time / set_time) {
                     //サービス時間加算
                     service_time_sum += pickup_time;
+                    a += pickup_time;
                 }
             }
 
@@ -132,6 +131,9 @@ void fcfs(int TAXI_NUM) {
             //サービスタイム加算
             if (get<0>(event.top()) >= end_time / set_time) {
                 service_time_sum += service_time;
+                a += service_time;
+                sum += a*a;
+                a = 0;
             }
             //タクシーの座標を降車位置に
             taxi_pos.at(get<2>(event.top())) = destination;
@@ -164,6 +166,7 @@ void fcfs(int TAXI_NUM) {
                     outputfile << WT << endl;
                     //サービス時間を足す
                     service_time_sum += pickup_time;
+                    a += pickup_time;
                 }
                 que.pop();
             } else {
@@ -195,6 +198,7 @@ void fcfs(int TAXI_NUM) {
     cout << "Service time average = " << service_time_sum / pop_cnt << endl;
     cout << "roh = " << lambda * service_time_sum / pop_cnt / (double)TAXI_NUM << endl;
     cout << "Rejection rate = " << rjc_cnt / arv_cnt << endl;
+    cout << "Service time square = " << sum / pop_cnt << endl;
     
     cout << endl;
     outputfile.close();
@@ -204,9 +208,169 @@ void fcfs(int TAXI_NUM) {
 
 
 
-double now = 0;
-//近接順
-void closest(int TAXI_NUM) {
+
+//Shortest processing time first
+void spt(int TAXI_NUM) {
+    string filename = to_string(TAXI_NUM) + "s.txt";
+    //出力ファイルを開く
+    ofstream outputfile;
+    outputfile.open(filename);
+    
+    //客の発生時刻と発生座標，客の現在地から目的地までの距離を持つ配列，仮待ち行列 : 一番近い客はタクシーによって異なるためqueueもp_queも使えない．一番近い客の情報へのアクセス(ランダムアクセス)が速い配列を採用
+    vector<tuple<double, pair<double, double>, pair<double, double>>> pas_vec;
+    //時間，イベントの種類，タクシー番号を保持して時間の早い順に取り出す 0:客発生 1:乗車 2:降車
+    priority_queue<tuple<double, int, int>, vector<tuple<double, int, int>>, greater<tuple<double, int, int>>> event;
+    vector<pair<double, double>> taxi_pos(TAXI_NUM);
+    //空きタクシーのリスト:空いている時，客から一番近いタクシーをリストから削除(客が乗車)する．削除が速いリストを採用
+    list<int> taxi_list;
+    for (int i = 0; i < TAXI_NUM; i++) taxi_list.push_back(i);
+
+    double service_time_sum = 0.0;
+    double wait_time_sum = 0.0;
+    double Length_sum = 0.0;
+    double pop_cnt = 0;
+    double rjc_cnt = 0;
+    double arv_cnt = 0;
+    
+    cout << "2 : Shortest processing time first" << " " << TAXI_NUM << endl;
+    vector<bool> p_flag(4, 1);
+    cout << "Progress is 0%";
+    
+    //タクシーの位置を初期化
+    for (int i = 0; i < TAXI_NUM; i++) {
+        taxi_pos.at(i) = coordinate();
+    }
+    
+    //1人目登場
+    double current_time = Arrival_interval();
+    event.push(make_tuple(current_time, 0, 1));
+    
+    while (get<0>(event.top()) < end_time) {
+        //客発生
+        if (get<1>(event.top()) == 0) {
+            arv_cnt += 1;
+            pair<double, double> passenger = coordinate();
+            pair<double, double> destination = coordinate();
+            
+            //空きタクシーがなければ待ち室に並ばせる
+            if (taxi_list.empty()) {
+                if (pas_vec.size() < K) pas_vec.push_back(make_tuple(current_time, passenger, destination));
+                else rjc_cnt += 1;
+                
+            } else {
+                //客から最短距離のタクシーを探索
+                double min_dst = inf;
+                auto num = taxi_list.begin();
+                for (auto x = num; x != taxi_list.end(); x++) {
+                    double dst_service = cal_dst(passenger, taxi_pos.at(*x));
+                    if (dst_service < min_dst) {
+                        min_dst = dst_service;
+                        num = x;
+                    }
+                }
+                //サービス時間を計算
+                double distance = cal_dst(passenger, destination);
+                double pickup_time = (min_dst + distance) / velocity;
+                taxi_pos.at(*num) = destination;
+                //降車処理を飛ばす
+                event.push(make_tuple(current_time + pickup_time, 2, *num));
+                taxi_list.erase(num);
+                if (get<0>(event.top()) >= end_time / set_time) {
+                    //サービス時間加算
+                    service_time_sum += pickup_time;
+                }
+            }
+
+            //次の客発生時刻をイベントにpush
+            current_time += Arrival_interval();
+            event.push(make_tuple(current_time, 0, -1));
+            
+        } else if (get<1>(event.top()) == 1) {  //乗車
+            //降車時間を計算
+//            pair<double, double> destination = coordinate();
+//            double service_time = cal_dst(taxi_pos.at(get<2>(event.top())), destination) / velocity;
+//            if (get<0>(event.top()) >= end_time / set_time) {
+//                service_time_sum += service_time;
+//            }
+//            //タクシーの座標を降車位置に
+//            taxi_pos.at(get<2>(event.top())) = destination;
+//            //降車イベントをpush
+//            event.push(make_tuple(get<0>(event.top()) + service_time, 2, get<2>(event.top())));
+            
+        } else if (get<1>(event.top()) == 2) {  //降車
+            if (!pas_vec.empty()) {
+                //サービス時間最短の客を探索
+                double min_dst = inf;
+                int num = 0;
+                for (int j = 0; j < pas_vec.size(); j++) {
+                    double dst_service = cal_dst(get<1>(pas_vec.at(j)), taxi_pos.at(get<2>(event.top()))) + cal_dst(get<1>(pas_vec.at(j)), get<2>(pas_vec.at(j)));
+                    if (dst_service < min_dst) {
+                        min_dst = dst_service;
+                        num = j;
+                    }
+                }
+                //次の客のサービス時間を計算
+                double service_time = min_dst / velocity;
+                //タクシーの座標を客の目的地の座標にする
+                taxi_pos.at(get<2>(event.top())) = get<2>(pas_vec.at(num));
+                event.push(make_tuple(current_time + service_time, 2, get<2>(event.top())));
+                
+                //初めの1/3のデータは捨てる
+                if (get<0>(event.top()) >= end_time / set_time) {
+                    //行列長を足す
+                    Length_sum += pas_vec.size() - 1;
+                    //待ち時間を足す
+                    double WT = get<0>(event.top()) - get<0>(pas_vec.at(num));
+                    wait_time_sum += WT;
+                    //待ち時間をファイルに出力
+                    outputfile << WT << endl;
+                    //サービス時間を足す
+                    service_time_sum += service_time;
+                }
+                //配列の要素削除は時間がかかるため，末尾を取り出したデータの格納先にコピーしてから末尾削除(定数時間)
+                pas_vec.at(num) = pas_vec.back();
+                pas_vec.pop_back();
+            } else {
+                //空きタクシーをリストに追加
+                taxi_list.push_back(get<2>(event.top()));
+            }
+            
+            if (get<0>(event.top()) >= end_time / set_time) {
+                //サービスを終えた客をカウント
+                pop_cnt += 1;
+            }
+        }
+        
+        //進捗状況を表示
+        double progress = get<0>(event.top()) / end_time;
+        if (progress > 0.8 && p_flag.at(3)) {cout << "...80%"; p_flag.at(3) = false;}
+        else if (progress > 0.6 && p_flag.at(2)) {cout << "...60%"; p_flag.at(2) = false;}
+        else if (progress > 0.4 && p_flag.at(1)) {cout << "...40%"; p_flag.at(1) = false;}
+        else if (progress > 0.2 && p_flag.at(0)) {cout << "...20%"; p_flag.at(0) = false;}
+        
+        //now = get<0>(event.top());
+        event.pop();
+    }
+    //cout << now << endl;
+    cout << "...100%" << endl;
+    //結果を出力
+    cout << "Wait time average = " << wait_time_sum / pop_cnt << endl;
+    cout << "Length average = " << Length_sum / pop_cnt << endl;
+    cout << "Service time average = " << service_time_sum / pop_cnt << endl;
+    cout << "roh = " << lambda * service_time_sum / pop_cnt / (double)TAXI_NUM << endl;
+    cout << "Rejection rate = " << rjc_cnt / arv_cnt << endl;
+    cout << "Length error = " << Length_sum / pop_cnt - (1 - rjc_cnt / arv_cnt) * lambda * wait_time_sum / pop_cnt << endl;
+    
+    outputfile.close();
+    
+}
+
+
+
+
+
+//Nearest first
+void nearest(int TAXI_NUM) {
     string filename = to_string(TAXI_NUM) + "c.txt";
     //出力ファイルを開く
     ofstream outputfile;
@@ -228,7 +392,7 @@ void closest(int TAXI_NUM) {
     double rjc_cnt = 0;
     double arv_cnt = 0;
     
-    cout << "2 : Closest order" << " " << TAXI_NUM << endl;
+    cout << "3 : Nearest first" << " " << TAXI_NUM << endl;
     vector<bool> p_flag(4, 1);
     cout << "Progress is 0%";
     
@@ -360,22 +524,23 @@ void closest(int TAXI_NUM) {
 int main() {
 //    cout << "Which algorithm ?" << endl;
 //    cout << "1 : First Come First Served" << endl;
-//    cout << "2 : Closest order" << endl;
-//    cout << "Put number 1 or 2 :";
+//    cout << "2 : Nearest order" << endl;
+//    cout << "3 : SPT << endl;
+//    cout << "Put number :";
 //    int num; cin >> num;
 //
 //    if (num == 1) fcfs();
-//    else closest();
+//    else if (num == 2) nearest();
     //cout << "PUT TAXI NUMBER :";
     //int TAXI_NUM; cin >> TAXI_NUM;
     //fcfs(TAXI_NUM);
-    for (int i = 51; i <= 70; i++) {
-        closest(i);
-        cout << endl;
+    int num, lambda_start = 120, lambda_end = 200;
+    cout << "Put Taxi num : "; cin >> num; cout << endl;
+    for (int j = lambda_start; j <= lambda_end; j+= 20) {
+        lambda = j;
+        fcfs(num);
+        spt(num);
+        nearest(num);
     }
-    for (int i = 49; i >= 30; i--) {
-        fcfs(i);
-        cout << endl;
-    }
-
+    
 }
